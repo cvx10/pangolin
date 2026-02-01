@@ -1,0 +1,44 @@
+# ===================
+# Pangolin Stack .gitignore
+# ===================
+
+# -------------------
+# Databases
+# -------------------
+config/db/db.sqlite
+config/crowdsec/db/crowdsec.db
+
+# -------------------
+# CrowdSec Credentials
+# -------------------
+config/crowdsec/local_api_credentials.yaml
+config/crowdsec/online_api_credentials.yaml
+
+# -------------------
+# Logs
+# -------------------
+config/logs/
+config/traefik/logs/
+
+# -------------------
+# Certificates & Keys
+# -------------------
+config/letsencrypt/acme.json
+config/key
+
+# -------------------
+# Configuration with secrets
+# -------------------
+config/config.yml
+.env
+
+# -------------------
+# OS & Editor files
+# -------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

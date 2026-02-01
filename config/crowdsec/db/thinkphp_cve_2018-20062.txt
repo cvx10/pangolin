@@ -1,0 +1,13 @@
+index/\\think\\app/invokefunction&function=call_user_func_array&vars
+index/%5cthink%5capp/invokefunction&function=call_user_func_array&vars
+index/\\x5cthink\\x5capp/invokefunction&function=call_user_func_array&vars
+index/\\\\think\\\\app/invokefunction&function=call_user_func_array&vars
+index/\\think\\view\\driver\\php/display&content=<\?php
+index/\\x5cthink\\x5cview\\x5cdriver\\x5cphp/display&content=<\?php
+index/\\\\x5cthink\\\\x5cview\\\\x5cdriver\\\\x5cphp/display&content=<\?php
+index/%5cthink%5cview%5cdriver%5cphp/display&content=%3c\?php
+index/\\think\\container/invokefunction&function=call_user_func_array&vars
+index/%5cthink%5ccontainer/invokefunction&function=call_user_func_array&vars
+index/\\x5cthink\\x5ccontainer/invokefunction&function=call_user_func_array&vars
+index/\\\\think\\\\container/invokefunction&function=call_user_func_array&vars
+index/\\x09hink\\x07pp/invokefunction&function=call_user_func_array&vars

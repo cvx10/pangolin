@@ -1,0 +1,45 @@
+# Pangolin Configuration Template
+# ================================
+# Copy this file to config.yml and replace placeholder values with your own.
+#
+# To see all available options, please visit the docs:
+# https://docs.pangolin.net/
+
+gerbil:
+    start_port: 51820
+    base_endpoint: "pangolin.your-domain.com"
+
+app:
+    dashboard_url: "https://pangolin.your-domain.com"
+    log_level: "info"
+    telemetry:
+        anonymous_usage: true
+
+domains:
+    domain1:
+        base_domain: "your-domain.com"
+
+server:
+    # Generate a secure 32-character random string for the secret
+    # Example: openssl rand -base64 24
+    secret: "YOUR_SERVER_SECRET_HERE"
+    cors:
+        origins: ["https://pangolin.your-domain.com"]
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+        allowed_headers: ["X-CSRF-Token", "Content-Type"]
+        credentials: false
+    maxmind_db_path: "./config/GeoLite2-Country.mmdb"
+
+email:
+    smtp_host: "smtp.your-email-provider.com"
+    smtp_port: 587
+    smtp_user: "your-email@example.com"
+    # Use an app-specific password for services like Gmail
+    smtp_pass: "YOUR_SMTP_PASSWORD_HERE"
+    no_reply: "noreply@your-domain.com"
+
+flags:
+    require_email_verification: true
+    disable_signup_without_invite: true
+    disable_user_create_org: false
+    allow_raw_resources: true
