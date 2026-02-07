@@ -1,0 +1,62 @@
+name: Deploy Pangolin Stack
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docker-compose.yml'
+  workflow_dispatch:  # Allow manual trigger from GitHub UI
+
+concurrency:
+  group: deploy-pangolin
+  cancel-in-progress: false  # Don't cancel in-progress deployments
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            
+            echo "📁 Navigating to deployment directory..."
+            cd ${{ secrets.DEPLOY_PATH }}
+            
+            echo "📥 Pulling latest changes..."
+            git pull origin main
+            
+            echo "🐳 Pulling new Docker images..."
+            docker compose pull
+            
+            echo "🚀 Starting services..."
+            docker compose up -d
+            
+            echo "⏳ Waiting for services to be healthy..."
+            sleep 30
+            
+            echo "🏥 Running health check..."
+            if curl -sf http://localhost:3001/api/v1/ > /dev/null; then
+              echo "✅ Health check passed!"
+            else
+              echo "❌ Health check failed!"
+              exit 1
+            fi
+            
+            echo "🧹 Cleaning up unused Docker images..."
+            docker image prune -f
+            
+            echo "✨ Deployment complete!"
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "::error::Deployment failed! Check the logs above for details."
+          echo "You may need to SSH to the server and check docker compose logs"

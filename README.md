@@ -65,9 +65,39 @@ config/GeoLite2-Country.mmdb
 docker compose up -d
 ```
 
-### 5. Access the Dashboard
+### 5. Configure GitHub Secrets (for CI/CD)
+
+Go to your repository Settings → Secrets → Actions and add:
+
+| Secret | Description |
+|--------|-------------|
+| `SSH_HOST` | Your server's IP or hostname |
+| `SSH_USER` | SSH username (e.g., `root`) |
+| `SSH_PRIVATE_KEY` | Private SSH key content |
+| `SSH_PORT` | SSH port (optional, defaults to 22) |
+| `DEPLOY_PATH` | Path to Pangolin directory (e.g., `/root/pangolin`) |
+
+### 6. Access the Dashboard
 
 Navigate to `https://pangolin.your-domain.com` to access the Pangolin dashboard.
+
+## 🔄 CI/CD
+
+This repository includes automated deployment via GitHub Actions:
+
+- **Dependabot**: Checks for Docker image updates weekly (Sundays 2:00 AM)
+- **Auto Deploy**: When `docker-compose.yml` changes are pushed to `main`, the stack is automatically deployed
+
+### Manual Deployment
+
+You can trigger a deployment manually from the GitHub Actions tab using the "Run workflow" button.
+
+### Workflow Features
+
+- SSH deployment to your server
+- Health check verification
+- Automatic Docker image cleanup
+- Concurrency control (prevents overlapping deployments)
 
 ## 📁 Directory Structure
 
