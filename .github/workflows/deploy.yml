@@ -68,13 +68,17 @@ jobs:
             docker compose up -d
             
             echo '⏳ Waiting for services to be healthy...'
-            sleep 30
+            sleep 10
             
             echo '🏥 Running health check...'
-            if curl -sf http://localhost:3001/api/v1/ > /dev/null; then
+            # Check if all containers are running and healthy
+            if docker compose ps --format json | grep -q '\"Health\":\"healthy\"'; then
               echo '✅ Health check passed!'
+              docker compose ps
             else
               echo '❌ Health check failed!'
+              docker compose ps
+              docker compose logs --tail=50 pangolin
               exit 1
             fi
             
