@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
-      DEPLOY_HOST: 100.122.99.25
-      DEPLOY_USER: root
-      DEPLOY_PATH: /root/pangolin
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ vars.PANGOLIN_DEPLOY_PATH }}
     
     steps:
       - name: Checkout
