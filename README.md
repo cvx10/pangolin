@@ -71,11 +71,9 @@ Go to your repository Settings → Secrets → Actions and add:
 
 | Secret | Description |
 |--------|-------------|
-| `SSH_HOST` | Your server's IP or hostname |
-| `SSH_USER` | SSH username (e.g., `root`) |
-| `SSH_PRIVATE_KEY` | Private SSH key content |
-| `SSH_PORT` | SSH port (optional, defaults to 22) |
-| `DEPLOY_PATH` | Path to Pangolin directory (e.g., `/root/pangolin`) |
+| `TS_OAUTH_CLIENT_ID` | Tailscale OAuth client ID |
+| `TS_OAUTH_SECRET` | Tailscale OAuth secret |
+| `VPS_SSH_KEY` | Private SSH key content |
 
 ### 6. Access the Dashboard
 
