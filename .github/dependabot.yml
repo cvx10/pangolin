@@ -15,3 +15,18 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "02:00"
+      timezone: "Europe/Brussels"
+    assignees:
+      - "cvx10"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "github-actions"
