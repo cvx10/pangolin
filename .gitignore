@@ -5,14 +5,16 @@
 # -------------------
 # Databases
 # -------------------
-config/db/db.sqlite
-config/crowdsec/db/crowdsec.db
+config/db/
+config/crowdsec/db/
 
 # -------------------
 # CrowdSec Credentials
 # -------------------
 config/crowdsec/local_api_credentials.yaml
 config/crowdsec/online_api_credentials.yaml
+config/crowdsec/appsec-rules/*
+config/crowdsec/hub/*
 
 # -------------------
 # Logs

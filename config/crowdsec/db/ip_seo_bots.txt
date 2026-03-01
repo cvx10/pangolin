@@ -1,1 +1,0 @@
-/staging/var/lib/crowdsec/data/ip_seo_bots.txt
