@@ -35,7 +35,7 @@ services:
       - 80:80
 
   traefik:
-    image: docker.io/traefik:v3.6
+    image: docker.io/traefik:v3.7
     container_name: traefik
     restart: unless-stopped
 
