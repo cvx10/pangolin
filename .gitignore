@@ -44,3 +44,7 @@ Thumbs.db
 *~
 .vscode/
 .idea/
+
+# crowdsec hub-managed symlinks (created by cscli on the server)
+config/crowdsec/postoverflows/
+config/crowdsec/scenarios/
