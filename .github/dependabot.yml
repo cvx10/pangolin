@@ -1,3 +1,14 @@
+# Le cooldown est déclaré explicitement dans les deux blocs ci-dessous.
+#
+# Sans lui, Dependabot applique un défaut implicite, invisible depuis le dépôt.
+# Le 2026-08-02 il a écarté fosrl/pangolin 1.21.1 avec « Skipping tag 1.21.1
+# due to cooldown period » : l'image avait 2 j 22 h 27 min, soit 1 h 33 min de
+# moins que le seuil. La mise à jour a donc glissé d'une semaine entière (le
+# job est hebdomadaire) sans que rien dans le dépôt n'explique pourquoi.
+#
+# 3 jours = le délai de maturation déjà retenu côté Renovate dans
+# homelab-cluster (`minimumReleaseAge: 3d`). 7 jours pour les majeures, qui
+# méritent d'être lues avant d'être mergées.
 version: 2
 updates:
   - package-ecosystem: "docker-compose"
@@ -7,6 +18,9 @@ updates:
       day: "sunday"
       time: "02:00"
       timezone: "Europe/Brussels"
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
     assignees:
       - "cvx10"
     open-pull-requests-limit: 5
@@ -23,6 +37,9 @@ updates:
       day: "sunday"
       time: "02:00"
       timezone: "Europe/Brussels"
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
     assignees:
       - "cvx10"
     commit-message:
