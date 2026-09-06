@@ -69,11 +69,15 @@ docker compose up -d
 
 Go to your repository Settings → Secrets → Actions and add:
 
-| Secret | Description |
-|--------|-------------|
-| `TS_OAUTH_CLIENT_ID` | Tailscale OAuth client ID |
-| `TS_OAUTH_SECRET` | Tailscale OAuth secret |
-| `VPS_SSH_KEY` | Private SSH key content |
+| Secret | Required | Description |
+|--------|----------|-------------|
+| `TS_OAUTH_CLIENT_ID` | yes | Tailscale OAuth client ID |
+| `TS_OAUTH_SECRET` | yes | Tailscale OAuth secret |
+| `TELEGRAM_BOT_TOKEN` | no | Bot token for deploy-failure alerts. Unset = alert skipped |
+| `TELEGRAM_CHAT_ID` | no | Chat the failure alert is sent to |
+
+SSH needs no key material: the runner joins the tailnet and authenticates with
+its tailnet identity through Tailscale SSH.
 
 ### 6. Access the Dashboard
 
@@ -92,10 +96,32 @@ You can trigger a deployment manually from the GitHub Actions tab using the "Run
 
 ### Workflow Features
 
-- SSH deployment to your server
+- SSH deployment to your server (Tailscale SSH, no stored key)
+- Config-drift absorption before the pull (see below)
 - Health check verification
 - Automatic Docker image cleanup
 - Concurrency control (prevents overlapping deployments)
+- Telegram alert on failure (optional)
+
+### Config drift
+
+Pangolin rewrites `config/traefik/traefik_config.yml` every time it starts, to
+pin the `badger` plugin version that ships with its image. The file is tracked,
+so that rewrite leaves the deployment checkout permanently dirty, and a plain
+`git pull` aborts with:
+
+```
+error: cannot pull with rebase: You have unstaged changes.
+```
+
+Under `set -e` that used to stop the whole deployment: Dependabot merged the
+image bump, the workflow failed, and the server kept running the old images.
+
+The deploy step now commits that drift (with `git add -u`, tracked files only —
+never `git add -A`, since a new untracked runtime file could carry credentials)
+and pushes it back, so it does not reappear at the next restart. The commit
+touches only `config/`, and the workflow triggers on `docker-compose.yml`, so it
+does not start another deployment.
 
 ## 📁 Directory Structure
 

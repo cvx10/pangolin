@@ -59,8 +59,29 @@ jobs:
             echo '📁 Navigating to deployment directory...'
             cd $DEPLOY_PATH
             
+            echo '🔀 Absorbing local config drift...'
+            # Pangolin rewrites config/traefik/traefik_config.yml at every start
+            # (it pins the badger plugin version shipped with its image). Left
+            # uncommitted, that change makes 'git pull' abort and, under 'set -e',
+            # it stops the whole deploy. Commit it instead, then push it back so
+            # it does not come back at the next restart. That commit only touches
+            # config/, so the 'paths' filter above does not retrigger a deploy.
+            # 'git add -u' on purpose, never 'git add -A': this repo is public,
+            # and a new untracked runtime file could carry credentials.
+            if ! git diff --quiet; then
+              echo 'Local drift detected:'
+              git diff --stat
+              git add -u
+              git -c user.name='pangolin-vps' -c user.email='deploy@lupica.be' commit -m 'chore(config): absorb runtime config drift from Pangolin'
+            fi
+
             echo '📥 Pulling latest changes...'
             git pull origin main
+
+            # Non-fatal: a merge landing between the pull and the push loses the
+            # race, and the next deploy rebases and pushes the commit anyway.
+            # Failing here would abort a deploy whose containers are still fine.
+            git push origin main || echo '::warning::Could not push the drift commit; next deploy will retry.'
             
             echo '🐳 Pulling new Docker images...'
             docker compose pull
@@ -91,6 +112,30 @@ jobs:
 
       - name: Notify on Failure
         if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           echo "::error::Deployment failed! Check the logs above for details."
           echo "You may need to SSH to the server and check docker compose logs"
+
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::warning::TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set, skipping Telegram alert."
+            exit 0
+          fi
+
+          subject=$(git log -1 --pretty=%s "$GITHUB_SHA" 2>/dev/null || echo '(unknown commit)')
+          text=$(printf '%s\n%s\n%s\n%s\n' \
+            '❌ Pangolin deploy failed' \
+            "commit ${GITHUB_SHA:0:7} — ${subject}" \
+            "host ${DEPLOY_HOST}" \
+            "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")
+
+          # Public access is down or stale until this is fixed: alert loudly, but
+          # never fail the job on the notification itself.
+          curl -sS -o /dev/null -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${text}" \
+            --data-urlencode 'disable_web_page_preview=true' \
+            || echo "::warning::Telegram notification failed."
