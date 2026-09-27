@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'docker-compose.yml'
+      - 'config/config.yml.tmpl'
+      - 'render-config.py'
   workflow_dispatch:
 
 concurrency:
@@ -83,11 +85,20 @@ jobs:
             # Failing here would abort a deploy whose containers are still fine.
             git push origin main || echo '::warning::Could not push the drift commit; next deploy will retry.'
             
+            echo '🧩 Rendering config/config.yml from config/config.yml.tmpl...'
+            # Exit 10 = config changed: pangolin reads it at start only.
+            rc=0; python3 render-config.py || rc=\$?
+            case \$rc in 0) restart_pangolin=0 ;; 10) restart_pangolin=1 ;; *) exit 1 ;; esac
+
             echo '🐳 Pulling new Docker images...'
             docker compose pull
             
             echo '🚀 Starting services...'
             docker compose up -d
+            if [ \$restart_pangolin = 1 ]; then
+              echo '🔁 config.yml changed, restarting pangolin...'
+              docker compose restart pangolin
+            fi
             
             echo '⏳ Waiting for services to be healthy...'
             sleep 10
