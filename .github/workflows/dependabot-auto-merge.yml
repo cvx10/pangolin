@@ -15,7 +15,12 @@ jobs:
         uses: dependabot/fetch-metadata@v3
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
+      # Patch and minor only. A major goes through a human review: Pangolin runs
+      # irreversible SQLite migrations on start, and every public site depends on
+      # this stack. The 7-day major cooldown in dependabot.yml only delays a
+      # major — before this condition, it then merged itself like any patch.
       - name: Enable auto-merge for Dependabot PRs
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
         run: gh pr merge --auto --merge "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
