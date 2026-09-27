@@ -39,6 +39,9 @@ email:
     no_reply: "noreply@your-domain.com"
 
 flags:
+    # Integration API on :3003 (API keys, Swagger at /v1/docs). Published on
+    # 127.0.0.1 only by docker-compose.yml — see README "Integration API".
+    enable_integration_api: true
     require_email_verification: true
     disable_signup_without_invite: true
     disable_user_create_org: false
