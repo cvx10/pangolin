@@ -42,7 +42,11 @@ services:
       - 80:80
 
   traefik:
-    image: docker.io/traefik:v3.7
+    # Full version, never a floating `v3.7`: `docker compose pull` in every
+    # deploy would move a floating tag with no PR, and Dependabot only proposes
+    # updates for tags it can compare. Same failure class as the Cilium range
+    # that self-upgraded in homelab-cluster on 2026-09-15.
+    image: docker.io/traefik:v3.7.13
     container_name: traefik
     restart: unless-stopped
 
@@ -64,7 +68,9 @@ services:
       - ./config/traefik/logs:/var/log/traefik # Volume to store Traefik logs
 
   crowdsec:
-    image: crowdsecurity/crowdsec:latest-debian
+    # Pinned for the same reason as traefik. v1.8.1-debian has the same digest
+    # as the latest-debian image that was running when this pin was set.
+    image: crowdsecurity/crowdsec:v1.8.1-debian
     container_name: crowdsec
     restart: unless-stopped
     environment:
