@@ -32,6 +32,7 @@ config/key
 # Configuration with secrets
 # -------------------
 config/config.yml
+config/config.yml.new
 .env
 
 # -------------------

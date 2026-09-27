@@ -1,0 +1,48 @@
+# Pangolin configuration — TEMPLATE, rendered into config/config.yml (gitignored)
+# by render-config.py at every deploy. Edit THIS file, never config.yml: the next
+# deploy overwrites it.
+#
+# The $-brace placeholders below are filled from .env on the VPS (0600, gitignored); every
+# value is written as a YAML-quoted string. This repository is PUBLIC: nothing
+# secret or personal goes here, only placeholders.
+#
+# All options: https://docs.pangolin.net/
+
+gerbil:
+    start_port: 51820
+    base_endpoint: "pangolin.lupica.be"
+
+app:
+    dashboard_url: "https://pangolin.lupica.be"
+    log_level: "info"
+    telemetry:
+        anonymous_usage: true
+
+domains:
+    domain1:
+        base_domain: "lupica.be"
+
+server:
+    secret: ${PANGOLIN_SERVER_SECRET}
+    cors:
+        origins: ["https://pangolin.lupica.be"]
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+        allowed_headers: ["X-CSRF-Token", "Content-Type"]
+        credentials: false
+    maxmind_db_path: "./config/GeoLite2-Country.mmdb"
+
+email:
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    smtp_user: ${SMTP_USER}
+    smtp_pass: ${SMTP_PASS}
+    no_reply: ${SMTP_NO_REPLY}
+
+flags:
+    # Integration API on :3003, published on 127.0.0.1 only (docker-compose.yml).
+    # Used by cvx10/edge-iac to apply the resource blueprint.
+    enable_integration_api: true
+    require_email_verification: true
+    disable_signup_without_invite: true
+    disable_user_create_org: false
+    allow_raw_resources: true
