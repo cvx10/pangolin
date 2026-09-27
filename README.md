@@ -119,6 +119,7 @@ This repository includes automated deployment via GitHub Actions:
 
 - **Dependabot**: Checks for Docker image updates weekly (Sundays 2:00 AM)
 - **Auto Deploy**: When `docker-compose.yml`, `config/config.yml.tmpl` or `render-config.py` changes are pushed to `main`, the stack is deployed (config rendered first; `pangolin` restarted only if `config.yml` changed)
+- **Rollback** (`deploy.sh`): hot SQLite snapshot of `config/db/db.sqlite` to `/root/backups/pangolin/` before pulling, then a strict health check (all four services running, `pangolin` healthy, `https://pangolin.lupica.be/api/v1/` answering through gerbil + traefik). On failure: checkout back to the previous commit, DB restored **only if the pangolin image moved** (its migrations are irreversible), stack restarted, job failed → Telegram. ⚠️ `origin/main` still holds the bad commit: fix it in git, or the next deploy fails the same way.
 
 ### Manual Deployment
 

@@ -7,6 +7,7 @@ on:
       - 'docker-compose.yml'
       - 'config/config.yml.tmpl'
       - 'render-config.py'
+      - 'deploy.sh'
   workflow_dispatch:
 
 concurrency:
@@ -77,6 +78,10 @@ jobs:
               git -c user.name='pangolin-vps' -c user.email='deploy@lupica.be' commit -m 'chore(config): absorb runtime config drift from Pangolin'
             fi
 
+            # Rollback point for deploy.sh: what ran before this deploy,
+            # drift commit included.
+            prev=\$(git rev-parse HEAD)
+
             echo '📥 Pulling latest changes...'
             git pull origin main
 
@@ -84,41 +89,10 @@ jobs:
             # race, and the next deploy rebases and pushes the commit anyway.
             # Failing here would abort a deploy whose containers are still fine.
             git push origin main || echo '::warning::Could not push the drift commit; next deploy will retry.'
-            
-            echo '🧩 Rendering config/config.yml from config/config.yml.tmpl...'
-            # Exit 10 = config changed: pangolin reads it at start only.
-            rc=0; python3 render-config.py || rc=\$?
-            case \$rc in 0) restart_pangolin=0 ;; 10) restart_pangolin=1 ;; *) exit 1 ;; esac
 
-            echo '🐳 Pulling new Docker images...'
-            docker compose pull
-            
-            echo '🚀 Starting services...'
-            docker compose up -d
-            if [ \$restart_pangolin = 1 ]; then
-              echo '🔁 config.yml changed, restarting pangolin...'
-              docker compose restart pangolin
-            fi
-            
-            echo '⏳ Waiting for services to be healthy...'
-            sleep 10
-            
-            echo '🏥 Running health check...'
-            # Check if all containers are running and healthy
-            if docker compose ps --format json | grep -q '\"Health\":\"healthy\"'; then
-              echo '✅ Health check passed!'
-              docker compose ps
-            else
-              echo '❌ Health check failed!'
-              docker compose ps
-              docker compose logs --tail=50 pangolin
-              exit 1
-            fi
-            
-            echo '🧹 Cleaning up unused Docker images...'
-            docker image prune -f
-            
-            echo '✨ Deployment complete!'
+            # Snapshot DB, render config, pull, up, strict health check, and
+            # rollback (checkout + DB) on failure. See deploy.sh.
+            bash deploy.sh \"\$prev\"
           "
 
       - name: Notify on Failure
