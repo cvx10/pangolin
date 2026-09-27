@@ -6,6 +6,13 @@ services:
     restart: unless-stopped
     volumes:
       - ./config:/app/config
+    ports:
+      # Integration API (flags.enable_integration_api in config.yml).
+      # Loopback ONLY: reached over `ssh -L 3003:127.0.0.1:3003 vps` or from the
+      # VPS itself. Never route it through Traefik, and never bind the tailnet IP:
+      # if tailscaled is not up at boot, the bind fails, the pangolin container
+      # does not start, gerbil waits on it, and every public site goes down.
+      - "127.0.0.1:3003:3003"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/"]
       interval: "10s"

@@ -83,6 +83,29 @@ its tailnet identity through Tailscale SSH.
 
 Navigate to `https://pangolin.your-domain.com` to access the Pangolin dashboard.
 
+## 🔑 Integration API
+
+Pangolin's Integration API (`flags.enable_integration_api: true` in
+`config/config.yml`) lets resources, identity providers and blueprints be managed
+with an API key instead of the dashboard.
+
+- **Bound to `127.0.0.1:3003` only.** No Traefik router, no public hostname, no
+  tailnet bind (a failed bind at boot would keep `pangolin` down, and with it every
+  public site). Reach it from a workstation with an SSH tunnel:
+
+  ```bash
+  ssh -N -L 3003:127.0.0.1:3003 vps
+  curl -H "Authorization: Bearer $(cat ~/.config/pangolin-api-key)" http://127.0.0.1:3003/v1/
+  ```
+
+- Swagger UI: `http://127.0.0.1:3003/v1/docs` through the same tunnel.
+- API keys are created in the dashboard (*Server Admin → API Keys*). A **root** key is
+  needed for server-level objects such as identity providers. Never commit one —
+  this repository is public.
+- `config/config.yml` is gitignored (it holds the server secret and SMTP
+  credentials): turning the flag on is a manual edit on the VPS followed by a
+  restart of the `pangolin` container. `config.yml.example` records the setting.
+
 ## 🔄 CI/CD
 
 This repository includes automated deployment via GitHub Actions:
