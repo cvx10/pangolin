@@ -46,7 +46,7 @@ services:
     # deploy would move a floating tag with no PR, and Dependabot only proposes
     # updates for tags it can compare. Same failure class as the Cilium range
     # that self-upgraded in homelab-cluster on 2026-09-15.
-    image: docker.io/traefik:v3.7.13
+    image: docker.io/traefik:v3.7.14
     container_name: traefik
     restart: unless-stopped
 
