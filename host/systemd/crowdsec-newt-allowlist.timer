@@ -1,0 +1,10 @@
+# Installed by host/install.sh.
+[Unit]
+Description=Sync the CrowdSec allowlist newt-sites every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

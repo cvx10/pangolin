@@ -1,0 +1,23 @@
+# Traefik access log of the Pangolin stack.
+# Installed by host/install.sh as /etc/logrotate.d/pangolin-traefik
+# (@REPO_DIR@ = the deployment checkout). Run daily by Debian's logrotate.timer.
+#
+# Never rotated before 2026-11-05: 4.2 GB since February. CrowdSec tails this
+# file (config/crowdsec/acquis.d/traefik.yaml); both containers bind-mount the
+# whole logs/ directory, so CrowdSec follows the path onto the new file.
+@REPO_DIR@/config/traefik/logs/access.log {
+    daily
+    rotate 30
+    maxsize 500M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    dateext
+    # %s: a maxsize rotation can happen twice on the same day.
+    dateformat -%Y%m%d-%s
+    postrotate
+        # Traefik closes and reopens its log files on USR1.
+        docker kill --signal=USR1 traefik >/dev/null 2>&1 || true
+    endscript
+}
