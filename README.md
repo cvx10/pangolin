@@ -118,7 +118,7 @@ with an API key instead of the dashboard.
 This repository includes automated deployment via GitHub Actions:
 
 - **Dependabot**: Checks for Docker image updates weekly (Sundays 2:00 AM)
-- **Auto Deploy**: When `docker-compose.yml`, `config/config.yml.tmpl` or `render-config.py` changes are pushed to `main`, the stack is deployed (config rendered first; `pangolin` restarted only if `config.yml` changed)
+- **Auto Deploy**: When `docker-compose.yml`, `config/config.yml.tmpl`, `render-config.py`, `deploy.sh` or anything under `host/` changes on `main`, the stack is deployed (config rendered first; `pangolin` restarted only if `config.yml` changed), then `host/install.sh` installs the host-side pieces (see "Host-side pieces" below)
 - **Rollback** (`deploy.sh`): hot SQLite snapshot of `config/db/db.sqlite` to `/root/backups/pangolin/` before pulling, then a strict health check (all four services running, `pangolin` healthy, `https://pangolin.lupica.be/api/v1/` answering through gerbil + traefik). On failure: checkout back to the previous commit, DB restored **only if the pangolin image moved** (its migrations are irreversible), stack restarted, job failed → Telegram. ⚠️ `origin/main` still holds the bad commit: fix it in git, or the next deploy fails the same way.
 
 ### Manual Deployment
@@ -154,11 +154,81 @@ and pushes it back, so it does not reappear at the next restart. The commit
 touches only `config/`, and the workflow triggers on `docker-compose.yml`, so it
 does not start another deployment.
 
+## 🖥️ Host-side pieces (`host/`)
+
+Things that live on the VPS itself rather than in a container. `host/install.sh`
+installs them, idempotently, at the end of every deploy (after `deploy.sh`, so a
+failure fails the job without rolling back a healthy stack). Files carry
+`@REPO_DIR@`, replaced by the checkout path. By hand: `bash host/install.sh`.
+
+### Traefik access-log rotation
+
+`/etc/logrotate.d/pangolin-traefik`: `config/traefik/logs/access.log`, daily
+(or at 500 MB), 30 rotations kept, gzip with `delaycompress`. Traefik reopens the
+file on `USR1` (`postrotate`), and CrowdSec, which tails that file, follows the
+path onto the new one (`Re-opening moved/deleted file` in its log). Before
+2026-11-05 the file was never rotated and had reached 4.2 GB.
+
+### CrowdSec allowlist for the newt sites (dynamic home IP)
+
+**The failure it prevents.** newt calls `POST /api/v1/auth/newt/get-token`
+every 3 s until it gets a token. If the home connection's IP is banned for any
+reason, each retry gets a 403 from the bouncer (`ban.html`), and that stream of
+403s triggers `LePresidente/http-generic-403-bf`, which bans the IP again. The
+ban renews itself for as long as newt retries: both tunnels down, every public
+site down, until someone deletes the decisions by hand.
+
+It happened on 2026-11-05. Right after a Proxmox maintenance, a Home Assistant
+dashboard panel received about 90 403s from HA itself within a minute, from the
+home IP. `crowdsecurity/http-probing` banned that IP for 4 h. The newt pods
+restarted during the ban, and the loop above kept it alive (71 alerts) until
+`cscli decisions delete --ip`. Public sites were down for about 50 minutes.
+
+**How it works.** The home IP is dynamic, so it is never written anywhere,
+neither in this public repo nor in DNS. The VPS learns it by itself:
+
+- Pangolin stores each site's public endpoint in `sites.endpoint`, with
+  `lastHolePunch`. It is updated when gerbil relays newt's UDP hole punch,
+  every few seconds. That path does not go through Traefik, so it keeps working
+  while the IP is banned, and Pangolin only accepts it with the newt's session
+  token.
+- `crowdsec-newt-allowlist.timer` (every 5 min) runs
+  `host/crowdsec-newt-allowlist.sh`. It reads that table **read-only** and keeps
+  the CrowdSec allowlist `newt-sites` equal to the public IPs of the newt sites
+  that punched in the last 10 minutes. It adds a new IP (and lifts any decision
+  already active on it), and removes an IP no site uses any more.
+- When no newt site has punched recently (tunnels down), the list is **left as
+  is**: that is when it must keep holding the last known IP.
+- After an IP change, the new IP is allowlisted at the next run (≤ 5 min).
+
+An allowlisted IP cannot be banned: LAPI refuses the decision
+(`cscli decisions add` → `is allowlisted by item … from newt-sites`). The
+trade-off is deliberate: CrowdSec never blocks the home connection, including
+any device on it.
+
+```bash
+docker exec crowdsec cscli allowlists inspect newt-sites   # current value(s)
+docker exec crowdsec cscli allowlists check <IP>
+journalctl -u crowdsec-newt-allowlist.service -n 20         # last runs
+systemctl list-timers crowdsec-newt-allowlist.timer
+```
+
+⚠️ The script depends on Pangolin's schema (`sites.endpoint`,
+`sites.lastHolePunch`, `sites.type`). If a Pangolin upgrade renames them, the
+unit fails loudly instead of emptying the list: check the journal after a
+Pangolin minor.
+
 ## 📁 Directory Structure
 
 ```
 pangolin/
 ├── docker-compose.yml      # Main compose file
+├── deploy.sh               # Snapshot, deploy, health check, rollback
+├── host/                   # Installed on the VPS by host/install.sh
+│   ├── install.sh
+│   ├── crowdsec-newt-allowlist.sh
+│   ├── logrotate/pangolin-traefik
+│   └── systemd/crowdsec-newt-allowlist.{service,timer}
 ├── config/
 │   ├── config.yml          # GENERATED by render-config.py (gitignored)
 │   ├── config.yml.tmpl     # Versioned template, ${VAR} from .env
@@ -233,6 +303,9 @@ docker exec crowdsec cscli alerts list
 
 # Unban an IP
 docker exec crowdsec cscli decisions delete --ip <IP_ADDRESS>
+
+# Home IP allowlist (managed by host/crowdsec-newt-allowlist.sh, do not edit by hand)
+docker exec crowdsec cscli allowlists inspect newt-sites
 ```
 
 ## 🐛 Troubleshooting

@@ -8,6 +8,7 @@ on:
       - 'config/config.yml.tmpl'
       - 'render-config.py'
       - 'deploy.sh'
+      - 'host/**'
   workflow_dispatch:
 
 concurrency:
@@ -93,6 +94,12 @@ jobs:
             # Snapshot DB, render config, pull, up, strict health check, and
             # rollback (checkout + DB) on failure. See deploy.sh.
             bash deploy.sh \"\$prev\"
+
+            # Host-side pieces: logrotate for the Traefik access log and the
+            # timer that allowlists the newt sites' IP in CrowdSec. See host/.
+            # Runs after deploy.sh on purpose: a failure here fails the job
+            # (Telegram) without rolling back a stack that is healthy.
+            bash host/install.sh
           "
 
       - name: Notify on Failure

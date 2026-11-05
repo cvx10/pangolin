@@ -1,0 +1,8 @@
+# Installed by host/install.sh (@REPO_DIR@ = the deployment checkout).
+[Unit]
+Description=Sync the CrowdSec allowlist newt-sites with the newt sites' public IP
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=@REPO_DIR@/host/crowdsec-newt-allowlist.sh
