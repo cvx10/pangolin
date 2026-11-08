@@ -19,9 +19,33 @@ jobs:
       # irreversible SQLite migrations on start, and every public site depends on
       # this stack. The 7-day major cooldown in dependabot.yml only delays a
       # major — before this condition, it then merged itself like any patch.
-      - name: Enable auto-merge for Dependabot PRs
+      #
+      # A plain merge with retries, NOT `gh pr merge --auto`. main has no branch
+      # protection, so GitHub's auto-merge cannot be enabled: `--auto` only
+      # works when the PR happens to be mergeable at that very second, and then
+      # gh merges directly. Dependabot opens its weekly PRs within the same
+      # second; the first merge moves main and the others fail
+      # (2026-11-08: #41 "Base branch was modified", #42 "Protected branch rules
+      # not configured for this branch") → both minors waited for a human.
+      # Not a `concurrency` group either: it keeps one pending run and CANCELS
+      # the others, so a third PR would be dropped.
+      # --match-head-commit: merge exactly what this run looked at. If
+      # Dependabot rebases meanwhile, that push starts its own run.
+      - name: Merge Dependabot PR (patch/minor)
         if: steps.metadata.outputs.update-type != 'version-update:semver-major'
-        run: gh pr merge --auto --merge "$PR_URL"
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if gh pr merge --merge --match-head-commit "$HEAD_SHA" "$PR_URL"; then
+              exit 0
+            fi
+            # Jitter, or PRs that failed together retry together.
+            delay=$((i * 10 + RANDOM % 10))
+            echo "::notice::merge attempt $i failed, retrying in ${delay}s"
+            sleep "$delay"
+          done
+          echo "::error::could not merge $PR_URL after 6 attempts"
+          exit 1
         env:
-          PR_URL: ${{github.event.pull_request.html_url}}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GH_TOKEN: ${{ secrets.DEPLOY_PAT }}
