@@ -70,7 +70,7 @@ services:
   crowdsec:
     # Pinned for the same reason as traefik. v1.8.1-debian has the same digest
     # as the latest-debian image that was running when this pin was set.
-    image: crowdsecurity/crowdsec:v1.8.1-debian
+    image: crowdsecurity/crowdsec:v1.8.2-debian
     container_name: crowdsec
     restart: unless-stopped
     environment:
