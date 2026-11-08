@@ -118,8 +118,10 @@ with an API key instead of the dashboard.
 This repository includes automated deployment via GitHub Actions:
 
 - **Dependabot**: Checks for Docker image updates weekly (Sundays 2:00 AM)
+- **Auto-merge** (`dependabot-auto-merge.yml`): patch + minor only, plain `gh pr merge --merge` retried up to 6 times with jitter. Not `--auto`: `main` has no branch protection, so GitHub's auto-merge cannot be enabled, and the PRs opened in the same second used to knock each other out
 - **Auto Deploy**: When `docker-compose.yml`, `config/config.yml.tmpl`, `render-config.py`, `deploy.sh` or anything under `host/` changes on `main`, the stack is deployed (config rendered first; `pangolin` restarted only if `config.yml` changed), then `host/install.sh` installs the host-side pieces (see "Host-side pieces" below)
 - **Rollback** (`deploy.sh`): hot SQLite snapshot of `config/db/db.sqlite` to `/root/backups/pangolin/` before pulling, then a strict health check (all four services running, `pangolin` healthy, `https://pangolin.lupica.be/api/v1/` answering through gerbil + traefik). On failure: checkout back to the previous commit, DB restored **only if the pangolin image moved** (its migrations are irreversible), stack restarted, job failed → Telegram. ⚠️ `origin/main` still holds the bad commit: fix it in git, or the next deploy fails the same way.
+- **Pre-upgrade DB copies**: `db.sqlite.prev` is replaced at every deploy, so when the pangolin image moves `deploy.sh` also keeps `/root/backups/pangolin/db.sqlite.pangolin-<old version>` (3 newest kept). That is the rollback point for an upgrade found bad *after* its deploy passed. Order matters: first, on the VPS, `docker compose stop pangolin`, copy that file over `config/db/db.sqlite` and delete `db.sqlite-wal` / `db.sqlite-shm`; only then push the commit that pins the old tag, and its deploy starts the old image on the restored DB. The other order starts the old image on the already-migrated DB.
 
 ### Manual Deployment
 

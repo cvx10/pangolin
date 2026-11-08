@@ -10,6 +10,9 @@
 # ⚠️ Restoring the DB is the ONLY real rollback of a Pangolin upgrade: it runs
 #    its SQLite migrations at start and they are irreversible. Never remove the
 #    snapshot step. Same pattern as cvx10/uptime-kuma deploy.sh.
+#    When the pangolin image moves, a copy also stays as
+#    db.sqlite.pangolin-<old version> (last $DB_KEEP kept): the rollback point
+#    for an upgrade found bad AFTER its deploy passed the health check.
 #
 # ⚠️ A rollback resets the checkout to <previous-commit> but origin/main still
 #    holds the bad commit, so the NEXT deploy pulls it again and fails the same
@@ -26,9 +29,30 @@ BACKUP_DIR=/root/backups/pangolin
 DB_PREV="$BACKUP_DIR/db.sqlite.prev"
 PUBLIC_HOST=pangolin.lupica.be
 HEALTH_TRIES=30 # × 5 s. Pangolin's own healthcheck allows 15 × 10 s at start.
+# Pre-upgrade copies kept across deploys, one per Pangolin version left behind
+# (db.sqlite.pangolin-<old version>). DB_PREV alone is not enough: it is
+# replaced at every deploy. 2026-11-08: two merges landed together, the first
+# deploy took both (1.25.3 → 1.26.0), the second had nothing to change but
+# still snapshotted the migrated DB over DB_PREV — the pre-1.26.0 copy was gone.
+DB_KEEP=3
 restart_pangolin=0
 
 log() { echo "$(date '+%H:%M:%S') $*"; }
+
+# Pangolin image tag in docker-compose.yml at <commit>, empty if none.
+pangolin_tag() {
+  git show "$1:docker-compose.yml" 2>/dev/null \
+    | sed -nE 's#.*fosrl/pangolin:([^"[:space:]]+).*#\1#p' | head -n1 || true
+}
+
+# Computed once, before anything can reset the checkout. A tag change is what
+# makes Pangolin run its migrations at start.
+PANGOLIN_FROM=$(pangolin_tag "$PREV")
+PANGOLIN_TO=$(pangolin_tag HEAD)
+pangolin_moved=0
+if [ -n "$PANGOLIN_FROM" ] && [ "$PANGOLIN_FROM" != "$PANGOLIN_TO" ]; then
+  pangolin_moved=1
+fi
 
 # Hot, consistent copy without stopping Pangolin. sqlite3 is not on the host;
 # python3 is. A plain cp could capture a half-written WAL.
@@ -51,6 +75,19 @@ d.close(); s.close()
 PY
   chmod 600 "$DB_PREV"
   log "📸 DB snapshot → $DB_PREV"
+
+  # Taken before the new image starts, so this is the DB as the OLD version
+  # left it: the one to restore if the upgrade turns out bad days later.
+  if [ "$pangolin_moved" = 1 ]; then
+    local keep="$BACKUP_DIR/db.sqlite.pangolin-${PANGOLIN_FROM//[^A-Za-z0-9._-]/_}"
+    cp -f "$DB_PREV" "$keep"
+    chmod 600 "$keep"
+    log "📸 pre-upgrade copy ($PANGOLIN_FROM → $PANGOLIN_TO) → $keep"
+    # Newest $DB_KEEP only. By mtime: the names hold versions, not dates.
+    # shellcheck disable=SC2012 # names are ours, no newline in them
+    ls -1t "$BACKUP_DIR"/db.sqlite.pangolin-* | tail -n +$((DB_KEEP + 1)) \
+      | xargs -r rm -f --
+  fi
 }
 
 render_config() {
@@ -97,13 +134,9 @@ wait_healthy() {
 rollback() {
   trap - ERR
   log "❌ deploy failed — rolling back to ${PREV:0:7}"
-  local pangolin_changed=0
-  if git diff "$PREV" HEAD -- docker-compose.yml | grep -qE '^[-+].*fosrl/pangolin:'; then
-    pangolin_changed=1
-  fi
   git reset --hard -q "$PREV"
   render_config || true
-  if [ "$pangolin_changed" = 1 ] && [ -s "$DB_PREV" ]; then
+  if [ "$pangolin_moved" = 1 ] && [ -s "$DB_PREV" ]; then
     # Only when the pangolin image moved: that is when migrations ran. For a
     # traefik or gerbil bump the live DB is fine, and restoring it would drop
     # whatever was written since the snapshot.
