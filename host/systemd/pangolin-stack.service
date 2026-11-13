@@ -1,0 +1,33 @@
+# Installed by host/install.sh (@REPO_DIR@ = the deployment checkout).
+#
+# Start every container of the stack whenever the Docker daemon (re)starts:
+# at boot, and when a docker-ce package upgrade restarts docker.service.
+#
+# Why: traefik runs in gerbil's network namespace (network_mode: service:gerbil).
+# Docker's own restart policy does not bring such a container back after a
+# daemon restart, and logs nothing about it. On 2026-11-13 `apt upgrade` moved
+# docker-ce, the daemon restarted, traefik stayed "Exited (0)" - also after the
+# reboot that followed - and every public site was down until a manual
+# `docker start traefik`.
+#
+# --no-recreate: this unit only starts what is stopped. Changing images or
+# config stays the job of deploy.sh.
+[Unit]
+Description=Start the Pangolin stack (pangolin, gerbil, traefik, crowdsec)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+# A restart of docker.service restarts this unit, which runs ExecStart again.
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=@REPO_DIR@
+ExecStart=/usr/bin/docker compose up -d --no-recreate --no-build --pull never
+# traefik waits for pangolin to be healthy (depends_on).
+TimeoutStartSec=300
+
+[Install]
+# Pulled in by docker.service, so it also runs when Docker starts at boot.
+WantedBy=docker.service
