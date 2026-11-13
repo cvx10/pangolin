@@ -3,6 +3,7 @@
 #
 #   /etc/logrotate.d/pangolin-traefik          rotate the Traefik access log
 #   crowdsec-newt-allowlist.{service,timer}    allowlist the newt sites' IP
+#   pangolin-stack.service                     start the stack after a Docker restart
 #
 # Run by .github/workflows/deploy.yml after deploy.sh succeeded. By hand on the
 # VPS: bash host/install.sh. Files carry @REPO_DIR@, replaced by this checkout's
@@ -54,4 +55,15 @@ systemctl enable --now crowdsec-newt-allowlist.timer
 systemctl start crowdsec-newt-allowlist.service
 log "allowlist newt-sites: $(docker exec crowdsec cscli allowlists inspect newt-sites -o json |
   python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("items") or []))') value(s)"
+# --- Start the stack whenever Docker (re)starts ------------------------------
+# See host/systemd/pangolin-stack.service for the incident behind it.
+if install_rendered host/systemd/pangolin-stack.service /etc/systemd/system/pangolin-stack.service; then
+  systemctl daemon-reload
+fi
+systemctl enable pangolin-stack.service
+# Run it now: a broken unit fails the deploy, not the next reboot. The stack is
+# already up at this point, so `up -d --no-recreate` changes nothing.
+systemctl restart pangolin-stack.service
+log "pangolin-stack.service: $(systemctl is-active pangolin-stack.service), enabled for docker.service"
+
 log "✅ host install complete"
